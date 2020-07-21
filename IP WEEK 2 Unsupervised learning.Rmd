@@ -1,0 +1,280 @@
+---
+title: "Using unsupervised learning"
+output:"R Markdown"
+---
+
+#Week 12 IP
+
+##Problem statement
+
+### Defining the question
+
+Kira Plastinina (Links to an external site.) is a Russian brand that is sold through a defunct chain of retail stores in Russia, Ukraine, Kazakhstan, Belarus, China, Philippines, and Armenia. The brand’s Sales and Marketing team would like to understand their customer’s behavior from data that they have collected over the past year. More specifically, they would like to learn the characteristics of customer groups.
+
+### Metrics of success
+The success of this project will be determined by building a model that is not underfitting or overfitting and is able to predict the desired outcome.
+
+###The layout of the model
+Below is the expected workflow of our Analysis
+
+1.   Reading the data
+2.   Cleaning the data
+3.   Exploratory data analysis (EDA)
+4    Pre-processing the data for training
+5.   Modeling
+6.   Recommendation and conclusion
+
+### Step one: Reading the data
+
+
+## Importing Libraries
+
+```{r}
+install.packages("tidyverse")
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(GGally))
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(tibble)
+
+```
+
+## Load the Dataset
+
+```{r}
+
+# Loading the data set
+
+online_shoppers <- read.csv(file = "online_shoppers_intention.csv", stringsAsFactors = FALSE, header = TRUE)
+# Reading the top of the dataset
+head(online_shoppers)
+# Reading the tail of the dataset
+tail(online_shoppers)
+
+## Viewing the data
+#Shape of the data
+
+```{r}
+dim(online_shoppers)
+```
+#our dataset has 12330 rows and 18 columns
+
+#Viewing columns and rows
+```{r}
+nrow(online_shoppers)
+ncol(online_shoppers)
+colnames(online_shoppers)
+```
+
+The datatypes of our dataset
+
+```{r}
+glimpse(online_shoppers)
+```
+
+Most of our columns are numerical variables
+
+#Summary of our dataset
+This is used to get the measures of central tendancies for the data
+```{r}
+
+summary(online_shoppers)
+
+```
+## Step two: Cleaning the dataset
+
+Checking for null values
+
+```{r}
+# Check for missing values
+
+colSums(is.na(online_shoppers))
+
+```
+
+Our null values seem to be 14 rows.
+```{r}
+# Dropping the null values
+shoppers<-na.omit(online_shoppers)
+colSums(is.na(shoppers))
+dim(shoppers)
+```
+
+Checking for duplicates
+
+
+```{r}
+
+df <- shoppers[duplicated(shoppers),]
+df
+shoppers <- unique(shoppers)
+dim(shoppers)
+
+```
+
+```{r}
+#Converting revenue column to numerical
+shoppers$Revenue [shoppers$Revenue == "true"] <- 1
+shoppers$Revenue [shoppers$Revenue == "false"] <- 0
+shoppers$Revenue <- as.integer(shoppers$Revenue)
+shoppers$Revenue
+df3 <- dplyr::select_if(shoppers, is.numeric)
+colnames(df3)
+glimpse(df3)
+```
+
+
+## Step three: EDA
+
+### UniVariate
+
+
+```
+
+find correlation between columns
+
+```{r}
+# Install packages
+install.packages("Hmisc")
+library(Hmisc)
+```{r}
+# get relationship between Revenue and other variables
+rev <- rcorr(as.matrix(df3))
+corr <- data.frame(rev$r)
+corr
+```
+There is a high positive correlation between bounce rate and exit  rates at 0.9, Administrative and Administrative duration at 0.6, informational and informational duration at 0.61, product related and product related duration at 0.86
+
+
+```
+
+Correlation matrix of revenue against other numerical variables
+
+```{r}
+rev <- cor(df3)
+round(rev, 2)
+```
+
+These variables have very low correlation with revenue
+```{r}
+#Visualising the correlation plot
+install.packages("corrplot")
+library(corrplot)
+
+corrplot(rev, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 50)
+```
+
+Feature selection
+```{r}
+features <- c('Administrative', 'Administrative_Duration',"Informational", "Informational_Duration",
+            "ProductRelated", "ProductRelated_Duration", "PageValues", "ExitRates", "BounceRates")
+df4 <- df3[features]
+head(df4) 
+```
+
+We have selected variables with a higher correlation to revenue
+
+##Step five: Modelling
+
+###K-Means Clustering
+
+```{r}
+# standardising our data
+normal <- function(x) (
+  return( ((x - min(x)) /(max(x)-min(x))) )
+)
+normal(1:9)
+df_standard <- as.data.frame(lapply(df4, normal))
+colnames(df_standard)
+summary(df_standard)
+
+```
+Kmeans with 4 centers
+```{r}
+
+
+set.seed(123)
+k <- kmeans(df_standard, centers = 4, nstart = 20)
+print(k)
+```
+Kmeans with 5 centers
+
+```{r}
+set.seed(123)
+k1 <- kmeans(df_standard, centers = 5, nstart = 20)
+print(k1)
+```
+```{r}
+set.seed(123)
+k2 <- kmeans(df_standard, centers = 8, nstart = 20)
+print(k2)
+```
+
+```{r}
+install.packages("cluster")
+suppressPackageStartupMessages(library(cluster))
+k$cluster
+#Plotting the clusters
+plot(df4[c(1,9)], col = k$cluster)
+plot(df4[c(1,5)], col = k$cluster)
+```
+```{r}
+
+```
+
+
+DBSCAN
+
+```{r}
+
+install.packages("dbscan")
+library("dbscan")
+```
+
+```{r}
+# Applying our DBSCAN algorithm
+# ---
+# We want minimum 4 points with in a distance of eps(0.4)
+# 
+db<-dbscan(df4,eps=0.4,MinPts = 4)
+#printing db
+print(db)
+```
+
+```{r}
+# We also plot our clusters as shown
+# ---
+# The dataset and cluster method of dbscan is used to plot the clusters.
+# 
+db$cluster
+hullplot(df4,db$cluster)
+```
+
+Hierarchial Clustering
+```{r}
+# Standardizing the data
+df5 <- scale(df3)
+head(df5)
+# First we use the dist() function to compute the Euclidean distance between observations, 
+# d will be the first argument in the hclust() function dissimilarity matrix
+# ---
+#
+d <- dist(df5, method = "euclidean")
+head(d)
+```
+
+```{r}
+# We then hierarchical clustering using the Ward's method
+# ---
+# 
+res.hc <- hclust(d, method = "ward.D2" )
+res.hc
+# Lastly, we plot the obtained dendrogram
+# ---
+# 
+plot(res.hc, cex = 0.8, hang = -1)
+```
+The main difference between K means and Hierarchial clustering is that in K means we define the number of clusters but in hierarchial we do not define the clusters
