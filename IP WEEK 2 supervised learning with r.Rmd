@@ -1,0 +1,322 @@
+---
+title: "Using supervised learning"
+output:"R Markdown"
+---
+
+#Week 12 IP
+
+##Problem statement
+
+### Defining the question
+
+A Kenyan entrepreneur has created an online cryptography course and would want to advertise it on her blog. She currently targets audiences originating from various countries. In the past, she ran ads to advertise a related course on the same blog and collected data in the process. She would now like to employ your services as a Data Science Consultant to help her identify which individuals are most likely to click on her ads. 
+
+### Metrics of success
+The success of this project will be determined by building a model that is not underfitting or overfitting and is able to predict the desired outcome.
+
+###The layout of the model
+Below is the expected workflow of our Analysis
+
+1.   Reading the data
+2.   Cleaning the data
+3.   Exploratory data analysis (EDA)
+4    Pre-processing the data for training
+5.   Modeling
+6.   Recommendation and conclusion
+
+### Step one: Reading the data
+
+
+## Importing Libraries
+
+```{r}
+install.packages("tidyverse")
+suppressPackageStartupMessages(library(tidyverse))
+
+```
+
+## Load the Dataset
+
+```{r}
+# Loading the data set
+advertising_data <- read.csv(file = "advertising_data R.csv", stringsAsFactors = FALSE, header = TRUE)
+#Shape of the data
+ncol(advertising_data)
+nrow(advertising_data)
+```
+Our dataset has 10 columns and 1000 rows
+
+Viewing columns and data types
+```{r}
+colnames(advertising_data)
+
+glimpse(advertising_data)
+#Most of our columns are numerical variables
+```
+Summary of our dataset
+This is used to get the measures of central tendancies for the data
+```{r}
+
+summary(advertising_data)
+
+```
+## Step two: Cleaning the dataset
+
+Checking for null values
+
+```{r}
+# Check for missing values
+
+colSums(is.na(advertising_data))
+# There are no null values in the data
+```
+
+Checking for duplicates
+```{r}
+
+df <- advertising_data[duplicated(advertising_data),]
+df
+df1 <- unique(advertising_data)
+df1
+dim(advertising_data)
+#There are no duplicate values
+```
+
+## Step three: EDA
+
+### UniVariate
+
+```{r}
+# a. Measures of central tendancy
+#Age mean
+age_mean <- mean(advertising_data$Age)
+age_mean
+age_median <- median(advertising_data$Age)
+age_median
+#Finding the mode for age
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+age_mode <- getmode(advertising_data$Age)
+age_mode
+#min and max age
+age_min <- min(advertising_data$Age)
+age_max <- max(advertising_data$Age)
+age_min
+age_max
+#The mean age of the readers of the blog is 36 years, while the median age is 35,and the mode is 31.
+#Therefore, we can conclude that most viewers are between the age of 35 and 36
+time_mean <- mean(advertising_data$Daily.Time.Spent.on.Site)
+time_mean
+#The daily time users spend is 65 minutes on the site
+dailyusage_mean <- mean(advertising_data$Daily.Internet.Usage)
+dailyusage_mean
+```
+```{r}
+# Max and min of country
+country <- max(advertising_data$Country)
+country
+country <- min(advertising_data$Country)
+country
+#The country with the highest number of readers is Zimbabwe while the country with the lowest readers is Afghanistan
+#The viewers spend around 180 of internet on the site
+#Checking the percentage of click on ad
+table(advertising_data$Clicked.on.Ad)
+#50% of the readers/viewers do not click on the add
+#
+```
+```{r}
+#Graphical representation
+#1.Box plot of age
+boxplot(advertising_data$Age)
+#Most readers are between the age of 30 and 40 with a majority between 35 and 36
+boxplot(advertising_data$Area.Income)
+income_mean <- mean(advertising_data$Area.Income)
+income_mean
+income_median <- median(advertising_data$Area.Income)
+income_median
+#Most readers have an average income of 55000
+#
+```
+```{r}
+#
+#2. Bar graph
+country <- advertising_data$Country
+country_frequency <- table(country)
+country_frequency
+barplot(country_frequency)
+#Using a histogram for age, gender and click on ad columns
+hist(advertising_data$Age)
+hist(advertising_data$Clicked.on.Ad)
+hist(advertising_data$Male)
+hist(advertising_data$Area.Income)
+```
+Bivariate analysis
+```{r}
+#Covariance of age and click on ad
+age <- advertising_data$Age
+click <- advertising_data$Clicked.on.Ad
+gender <- advertising_data$Male
+cov(age, click)
+#The covariance of age to click is positive meaning they're positively related
+income <- advertising_data$Area.Income
+cov(income, click)
+#As income increases, the click on ad reduces
+#
+```
+```{r}
+#Using correlation coefficient
+cor(age, click)
+#There is a medium positive correlation between age and click on ad
+cor(income, click)
+#There is a medium negative correlation between age and click on ad
+ 
+#
+# Creating a scatter plot
+plot(age, click, xlab="Age", ylab="click on ad")
+plot(income, click, xlab="Income", ylab="click on ad")
+plot(gender, click, xlab="gender", ylab="click on ad")
+# Both plots reveal positive correlation
+```
+# Conclusion
+1.The blog is relevant to people between the ages of 30 and 40.
+2.50 % of the readers view the ad
+3.Most people who view the blog have an income of around 55,000 to 70,000
+4.The country with the highest number of readers is Zimbabwe while the country with the lowest readers is Afghanistan
+5.There's a positive relationship between age and click on ad; whereby older people tend to watch ads;
+6. There's no relationship between click on ad and gender
+
+
+Feature selection
+
+```{r}
+# Install packages
+install.packages("Hmisc")
+library(Hmisc)
+```{r}
+# Checking for numerical columns
+library(dplyr)
+df <- dplyr::select_if(advertising_data, is.numeric)
+
+head(df)
+colnames(df)
+# get relationship between numerical variables
+install.packages("corrplot")
+suppressPackageStartupMessages(library(corrplot))
+rev <- rcorr(as.matrix(df))
+corr <- data.frame(rev$r)
+corr
+#
+rev <- cor(df)
+round(rev, 2)
+```
+There is a high negative correlation between daily time spent on site,daily internet usage and click on ad. There is a  medium positive correlation between age and click on ad and medium negative correlation  between income and click on ad. There is no correlation between male and click on ad.
+
+
+```
+Feature selection
+
+```{r}
+features <- c('Daily.Time.Spent.on.Site ', 'Age',"Area.Income", "Daily.Internet.Usage",
+            "Male")
+features
+`
+```{r}
+#Visualising the correlation plot
+install.packages("corrplot")
+library(corrplot)
+
+corrplot(rev, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 50)
+```
+
+
+
+##Step five: Modelling
+
+###Multilinear regression
+
+```{r}
+feature <- factor(features)
+x <- feature
+ad <- c("Clicked.on.Ad" )
+advertising_data[ad] <- sapply(advertising_data[ad],as.numeric)
+sapply(advertising_data, class)
+y <- ad
+# Apply the lm() function.
+relation <- lm(y~x)
+```
+SVM
+
+
+```{r}
+```
+
+
+```{r}
+install.packages('caret')
+```
+
+
+```{r}
+head(df)
+# Encoding the target feature as factor 
+df$Clicked.on.Ad = factor(df$Clicked.on.Ad, levels = c(0, 1))
+```
+```{r}
+# Splitting the dataset into the Training set and Test set 
+install.packages('caTools') 
+library(caTools) 
+  
+set.seed(123) 
+split = sample.split(df$Clicked.on.Ad, SplitRatio = 0.75) 
+  
+training_set = subset(df, split == TRUE) 
+test_set = subset(df, split == FALSE)
+#Viweing the training set
+training_set
+#Our training set has 750 records
+
+#Viewing our test set
+test_set
+# Our test set has 250 records
+```
+
+
+```{r}
+# Feature Scaling 
+head(df)
+training_set[-3] = scale(training_set[-3]) 
+training_set[-3]
+test_set[-3] = scale(test_set[-3])
+
+test_set[-3]
+```
+
+```{r}
+
+# Fitting SVM to the Training set 
+install.packages('e1071') 
+library(e1071) 
+  
+classifier = svm(formula = Clicked.on.Ad ~ ., 
+                 data = training_set, 
+                 type = 'C-classification', 
+                 kernel = 'linear') 
+```
+```{r}
+# Predicting the Test set results 
+y_pred = predict(classifier, newdata = test_set[-3]) 
+y_pred
+```
+Confusion matrix
+
+```{r}
+
+# Making the Confusion Matrix 
+cm = table(test_set[, 4], y_pred) 
+cm
+```
+Our SVM model has a higher accuracy as indicated on the confusion matrix
+
